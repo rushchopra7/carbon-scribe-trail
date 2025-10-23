@@ -19,8 +19,9 @@ interface UploadedDocument {
   supplierName?: string;
   materialName?: string;
   extractedData?: {
-    carbonFootprint?: number;
-    weight?: number;
+    carbonFootprint?: number; // kg CO₂e
+    weight?: number; // kg
+    quantity?: number; // units/pieces
     origin?: string;
   };
 }
@@ -36,30 +37,36 @@ const SupplierPortal = () => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const file = files[0];
+      const newDocuments: UploadedDocument[] = [];
       
-      // Simulate document processing with extracted data
-      const mockExtractedData = {
-        carbonFootprint: documentType === "lieferschein" ? Math.random() * 500 + 100 : undefined,
-        weight: Math.random() * 1000 + 100,
-        origin: documentType === "lieferschein" ? "Germany" : undefined,
-      };
+      // Process all selected files
+      Array.from(files).forEach((file) => {
+        // Simulate document processing with extracted data in kg units
+        const mockExtractedData = {
+          carbonFootprint: documentType === "lieferschein" ? Math.random() * 500 + 100 : undefined,
+          weight: Math.random() * 1000 + 100, // Always in kg
+          origin: documentType === "lieferschein" ? "Germany" : undefined,
+          quantity: documentType === "lieferschein" ? Math.floor(Math.random() * 50 + 5) : undefined,
+        };
 
-      const newDocument: UploadedDocument = {
-        id: Date.now().toString(),
-        name: file.name,
-        type: documentType,
-        uploadedAt: new Date(),
-        supplierName: supplierName || undefined,
-        materialName: materialName || undefined,
-        extractedData: mockExtractedData,
-      };
+        const newDocument: UploadedDocument = {
+          id: `${Date.now()}-${Math.random()}`,
+          name: file.name,
+          type: documentType,
+          uploadedAt: new Date(),
+          supplierName: supplierName || undefined,
+          materialName: materialName || undefined,
+          extractedData: mockExtractedData,
+        };
+        
+        newDocuments.push(newDocument);
+      });
 
-      setUploadedDocuments([...uploadedDocuments, newDocument]);
+      setUploadedDocuments([...uploadedDocuments, ...newDocuments]);
       
       toast({
-        title: "Document Uploaded Successfully",
-        description: `${file.name} has been processed and verified.`,
+        title: "Documents Uploaded Successfully",
+        description: `${newDocuments.length} document${newDocuments.length > 1 ? 's' : ''} processed and verified.`,
       });
 
       // Reset form
@@ -155,7 +162,7 @@ const SupplierPortal = () => {
                 </div>
 
                 <div>
-                  <Label htmlFor="document-file">Document File (PDF, Excel, or Image)</Label>
+                  <Label htmlFor="document-file">Document Files (PDF, Excel, or Image)</Label>
                   <div className="mt-2 flex items-center gap-4">
                     <Input
                       id="document-file"
@@ -163,15 +170,16 @@ const SupplierPortal = () => {
                       type="file"
                       accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png"
                       onChange={handleFileUpload}
+                      multiple
                       className="cursor-pointer"
                     />
                     <Button className="gap-2" type="button" onClick={() => fileInputRef.current?.click()}>
                       <Upload className="h-4 w-4" />
-                      Choose File
+                      Choose Files
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Documents will be automatically processed and verified
+                    Select multiple files to upload (e.g., one for quantity, one for weight). All metrics in kg.
                   </p>
                 </div>
               </div>
@@ -247,11 +255,11 @@ const SupplierPortal = () => {
                       </div>
                       {doc.extractedData && (
                         <>
-                          {doc.extractedData.carbonFootprint && (
+                          {doc.extractedData.quantity && (
                             <div>
-                              <p className="text-xs text-muted-foreground mb-1">Carbon Footprint</p>
+                              <p className="text-xs text-muted-foreground mb-1">Quantity</p>
                               <p className="text-sm font-medium text-foreground">
-                                {doc.extractedData.carbonFootprint.toFixed(2)} kg CO₂e
+                                {doc.extractedData.quantity} units
                               </p>
                             </div>
                           )}
@@ -260,6 +268,14 @@ const SupplierPortal = () => {
                               <p className="text-xs text-muted-foreground mb-1">Weight</p>
                               <p className="text-sm font-medium text-foreground">
                                 {doc.extractedData.weight.toFixed(2)} kg
+                              </p>
+                            </div>
+                          )}
+                          {doc.extractedData.carbonFootprint && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Carbon Footprint</p>
+                              <p className="text-sm font-medium text-foreground">
+                                {doc.extractedData.carbonFootprint.toFixed(2)} kg CO₂e
                               </p>
                             </div>
                           )}
