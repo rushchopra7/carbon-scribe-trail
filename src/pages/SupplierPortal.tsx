@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, FileCheck, CheckCircle2, FileText, Trash2, Building2, Package } from "lucide-react";
+import { ArrowLeft, Upload, FileCheck, CheckCircle2, FileText, Trash2, Building2, Package, TrendingUp, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { parseExcelFile, MaterialData } from "@/utils/excelParser";
 import { formatNumberGerman } from "@/lib/utils";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 interface CompanySummary {
   company: string;
@@ -119,6 +120,26 @@ const SupplierPortal = () => {
 
   const totalCarbonFootprint = materialData.reduce((sum, item) => sum + (item.carbonFootprint || 0), 0);
   const totalWeight = materialData.reduce((sum, item) => sum + (item.weight || 0), 0);
+
+  // Prepare chart data
+  const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+  
+  const companyChartData = companySummaries
+    .sort((a, b) => b.totalCarbonFootprint - a.totalCarbonFootprint)
+    .slice(0, 10)
+    .map(item => ({
+      name: item.company.length > 20 ? item.company.substring(0, 20) + '...' : item.company,
+      carbonFootprint: Math.round(item.totalCarbonFootprint),
+      weight: Math.round(item.totalWeight),
+    }));
+
+  const materialChartData = materialSummaries
+    .sort((a, b) => b.totalCarbonFootprint - a.totalCarbonFootprint)
+    .slice(0, 8)
+    .map(item => ({
+      name: item.material.length > 15 ? item.material.substring(0, 15) + '...' : item.material,
+      value: Math.round(item.totalCarbonFootprint),
+    }));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/30">
@@ -248,38 +269,85 @@ const SupplierPortal = () => {
                 </p>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {companySummaries.sort((a, b) => b.totalCarbonFootprint - a.totalCarbonFootprint).map((summary, index) => (
-                  <Card key={index} className="p-6 bg-gradient-to-br from-card to-card/50 hover:shadow-lg transition-shadow">
-                    <div className="space-y-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-base text-foreground truncate" title={summary.company}>
-                            {summary.company}
-                          </h4>
-                          <Badge variant="secondary" className="mt-2">
-                            {formatNumberGerman(summary.materialCount, 0)} materials
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div className="p-3 bg-secondary/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Total Weight</p>
-                          <p className="text-xl font-bold text-foreground">{formatNumberGerman(summary.totalWeight)}</p>
-                          <p className="text-xs text-muted-foreground">kg</p>
+              <>
+                <Card className="p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Top 10 Companies by Carbon Footprint</h3>
+                  </div>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart data={companyChartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis 
+                        dataKey="name" 
+                        angle={-45} 
+                        textAnchor="end" 
+                        height={120}
+                        stroke="hsl(var(--muted-foreground))"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <YAxis 
+                        stroke="hsl(var(--muted-foreground))"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                        formatter={(value: number) => formatNumberGerman(value)}
+                      />
+                      <Legend />
+                      <Bar dataKey="carbonFootprint" name="Carbon Footprint (kg CO₂e)" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Card>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {companySummaries.sort((a, b) => b.totalCarbonFootprint - a.totalCarbonFootprint).map((summary, index) => (
+                    <Card key={index} className="p-6 bg-gradient-to-br from-card to-card/50 hover:shadow-lg transition-shadow">
+                      <div className="space-y-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                <Building2 className="h-4 w-4 text-primary" />
+                              </div>
+                              <h4 className="font-bold text-base text-foreground truncate" title={summary.company}>
+                                {summary.company}
+                              </h4>
+                            </div>
+                            <Badge variant="secondary" className="mt-2">
+                              {formatNumberGerman(summary.materialCount, 0)} materials
+                            </Badge>
+                          </div>
                         </div>
                         
-                        <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                          <p className="text-xs text-muted-foreground mb-1">Carbon Footprint</p>
-                          <p className="text-2xl font-bold text-primary">{formatNumberGerman(summary.totalCarbonFootprint)}</p>
-                          <p className="text-sm text-muted-foreground">kg CO₂e</p>
+                        <div className="space-y-3">
+                          <div className="p-3 bg-secondary/30 rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">Total Weight</p>
+                            <p className="text-xl font-bold text-foreground">{formatNumberGerman(summary.totalWeight)}</p>
+                            <p className="text-xs text-muted-foreground">kg</p>
+                          </div>
+                          
+                          <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-xs text-muted-foreground">Carbon Footprint</p>
+                              <TrendingUp className="h-4 w-4 text-primary" />
+                            </div>
+                            <p className="text-2xl font-bold text-primary">{formatNumberGerman(summary.totalCarbonFootprint)}</p>
+                            <p className="text-sm text-muted-foreground">kg CO₂e</p>
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              {((summary.totalCarbonFootprint / totalCarbonFootprint) * 100).toFixed(1)}% of total
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
+                    </Card>
+                  ))}
+                </div>
+              </>
             )}
           </TabsContent>
 
@@ -293,40 +361,110 @@ const SupplierPortal = () => {
                 </p>
               </Card>
             ) : (
-              <div className="grid gap-4">
-                {materialSummaries.sort((a, b) => b.totalCarbonFootprint - a.totalCarbonFootprint).map((summary, index) => (
-                  <Card key={index} className="p-6 hover:shadow-md transition-shadow">
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="font-semibold text-foreground mb-2">{summary.material}</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {summary.suppliers.map((supplier, idx) => (
-                            <Badge key={idx} variant="outline">{supplier}</Badge>
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card className="p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <BarChart3 className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-semibold">Material Carbon Footprint Distribution</h3>
+                    </div>
+                    <ResponsiveContainer width="100%" height={350}>
+                      <PieChart>
+                        <Pie
+                          data={materialChartData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                          outerRadius={100}
+                          fill="hsl(var(--primary))"
+                          dataKey="value"
+                        >
+                          {materialChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px'
+                          }}
+                          formatter={(value: number) => [formatNumberGerman(value) + ' kg CO₂e', 'Carbon']}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </Card>
+
+                  <Card className="p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-semibold">Top Materials Impact</h3>
+                    </div>
+                    <div className="space-y-4">
+                      {materialSummaries.slice(0, 5).map((summary, index) => (
+                        <div key={index} className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-medium text-foreground truncate max-w-[60%]">{summary.material}</span>
+                            <span className="text-primary font-bold">{formatNumberGerman(summary.totalCarbonFootprint)} kg CO₂e</span>
+                          </div>
+                          <div className="w-full bg-secondary/30 rounded-full h-2.5">
+                            <div 
+                              className="bg-primary h-2.5 rounded-full transition-all duration-500"
+                              style={{ width: `${(summary.totalCarbonFootprint / materialSummaries[0].totalCarbonFootprint) * 100}%` }}
+                            ></div>
+                          </div>
                         </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="p-3 bg-secondary/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Quantity</p>
-                          <p className="text-lg font-bold text-foreground">{formatNumberGerman(summary.quantity)}</p>
-                          <p className="text-xs text-muted-foreground">{summary.unit}</p>
-                        </div>
-                        <div className="p-3 bg-secondary/30 rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Weight</p>
-                          <p className="text-lg font-bold text-foreground">{formatNumberGerman(summary.totalWeight)}</p>
-                          <p className="text-xs text-muted-foreground">kg</p>
-                        </div>
-                        <div className="p-3 bg-primary/10 rounded-lg border border-primary/20 md:col-span-2">
-                          <p className="text-xs text-muted-foreground mb-1">Carbon Footprint</p>
-                          <p className="text-2xl font-bold text-primary">{formatNumberGerman(summary.totalCarbonFootprint)}</p>
-                          <p className="text-sm text-muted-foreground">kg CO₂e</p>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </Card>
-                ))}
-              </div>
+                </div>
+
+                <div className="grid gap-4">
+                  {materialSummaries.sort((a, b) => b.totalCarbonFootprint - a.totalCarbonFootprint).map((summary, index) => (
+                    <Card key={index} className="p-6 hover:shadow-md transition-shadow">
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }}>
+                              <Package className="h-4 w-4 text-white" />
+                            </div>
+                            <h4 className="font-semibold text-foreground">{summary.material}</h4>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {summary.suppliers.map((supplier, idx) => (
+                              <Badge key={idx} variant="outline">{supplier}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="p-3 bg-secondary/30 rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">Quantity</p>
+                            <p className="text-lg font-bold text-foreground">{formatNumberGerman(summary.quantity)}</p>
+                            <p className="text-xs text-muted-foreground">{summary.unit}</p>
+                          </div>
+                          <div className="p-3 bg-secondary/30 rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">Weight</p>
+                            <p className="text-lg font-bold text-foreground">{formatNumberGerman(summary.totalWeight)}</p>
+                            <p className="text-xs text-muted-foreground">kg</p>
+                          </div>
+                          <div className="p-3 bg-primary/10 rounded-lg border border-primary/20 md:col-span-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-xs text-muted-foreground">Carbon Footprint</p>
+                              <span className="text-xs text-muted-foreground">
+                                {((summary.totalCarbonFootprint / totalCarbonFootprint) * 100).toFixed(1)}% of total
+                              </span>
+                            </div>
+                            <p className="text-2xl font-bold text-primary">{formatNumberGerman(summary.totalCarbonFootprint)}</p>
+                            <p className="text-sm text-muted-foreground">kg CO₂e</p>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </>
             )}
           </TabsContent>
 
