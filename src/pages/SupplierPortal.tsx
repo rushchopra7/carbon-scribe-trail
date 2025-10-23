@@ -2,12 +2,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, FileCheck, CheckCircle2, FileText, Trash2 } from "lucide-react";
+import { ArrowLeft, Upload, FileCheck, CheckCircle2, FileText, Trash2, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 type DocumentType = "lieferschein" | "epd" | "invoice" | "certificate" | "other";
 
@@ -26,6 +27,14 @@ interface UploadedDocument {
   };
 }
 
+interface CompanySummary {
+  company: string;
+  totalWeight: number;
+  totalCarbonFootprint: number;
+  documentCount: number;
+  totalQuantity: number;
+}
+
 const SupplierPortal = () => {
   const { toast } = useToast();
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
@@ -33,6 +42,32 @@ const SupplierPortal = () => {
   const [supplierName, setSupplierName] = useState("");
   const [materialName, setMaterialName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Calculate company summaries whenever documents change
+  const companySummaries = uploadedDocuments.reduce((acc, doc) => {
+    const company = doc.supplierName || "Unknown Company";
+    const existing = acc.find(s => s.company === company);
+    
+    const weight = doc.extractedData?.weight || 0;
+    const carbon = doc.extractedData?.carbonFootprint || 0;
+    const quantity = doc.extractedData?.quantity || 0;
+    
+    if (existing) {
+      existing.totalWeight += weight;
+      existing.totalCarbonFootprint += carbon;
+      existing.totalQuantity += quantity;
+      existing.documentCount += 1;
+    } else {
+      acc.push({
+        company,
+        totalWeight: weight,
+        totalCarbonFootprint: carbon,
+        totalQuantity: quantity,
+        documentCount: 1,
+      });
+    }
+    return acc;
+  }, [] as CompanySummary[]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -113,8 +148,11 @@ const SupplierPortal = () => {
         </div>
 
         <Tabs defaultValue="upload" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="upload">Upload Documents</TabsTrigger>
+            <TabsTrigger value="companies">
+              By Company ({companySummaries.length})
+            </TabsTrigger>
             <TabsTrigger value="results">
               Individual Results ({uploadedDocuments.length})
             </TabsTrigger>
@@ -202,6 +240,51 @@ const SupplierPortal = () => {
                 </li>
               </ul>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="companies" className="space-y-6">
+            {companySummaries.length === 0 ? (
+              <Card className="p-12 text-center">
+                <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No company data available</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Upload documents with supplier information to see company-wise summaries
+                </p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {companySummaries.map((summary, index) => (
+                  <Card key={index} className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-bold text-lg text-foreground">{summary.company}</h4>
+                        <Badge variant="secondary">{summary.documentCount} docs</Badge>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-3 bg-card/50 rounded-lg">
+                          <p className="text-xs text-muted-foreground mb-1">Total Weight</p>
+                          <p className="text-xl font-bold text-foreground">{summary.totalWeight.toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground">kg</p>
+                        </div>
+                        
+                        <div className="p-3 bg-card/50 rounded-lg">
+                          <p className="text-xs text-muted-foreground mb-1">Total Quantity</p>
+                          <p className="text-xl font-bold text-foreground">{summary.totalQuantity}</p>
+                          <p className="text-xs text-muted-foreground">units</p>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                        <p className="text-xs text-muted-foreground mb-1">Total Carbon Footprint</p>
+                        <p className="text-2xl font-bold text-primary">{summary.totalCarbonFootprint.toFixed(2)}</p>
+                        <p className="text-sm text-muted-foreground">kg CO₂e</p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="results" className="space-y-6">
