@@ -34,48 +34,54 @@ const SupplierPortal = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Calculate company summaries
-  const companySummaries = materialData.reduce((acc, item) => {
-    const existing = acc.find(s => s.company === item.supplier);
-    
-    if (existing) {
-      existing.totalWeight += item.weight || 0;
-      existing.totalCarbonFootprint += item.carbonFootprint || 0;
-      existing.materialCount += 1;
-    } else {
-      acc.push({
-        company: item.supplier,
-        totalWeight: item.weight || 0,
-        totalCarbonFootprint: item.carbonFootprint || 0,
-        materialCount: 1,
-      });
-    }
-    return acc;
-  }, [] as CompanySummary[]);
-
-  // Calculate material summaries
-  const materialSummaries = materialData.reduce((acc, item) => {
-    const existing = acc.find(s => s.material === item.material);
-    
-    if (existing) {
-      existing.totalWeight += item.weight || 0;
-      existing.totalCarbonFootprint += item.carbonFootprint || 0;
-      existing.quantity += item.quantity;
-      if (!existing.suppliers.includes(item.supplier)) {
-        existing.suppliers.push(item.supplier);
+  // Calculate company summaries (only materials with carbon footprint)
+  const companySummaries = materialData
+    .filter(item => (item.carbonFootprint || 0) > 0)
+    .reduce((acc, item) => {
+      const existing = acc.find(s => s.company === item.supplier);
+      
+      if (existing) {
+        existing.totalWeight += item.weight || 0;
+        existing.totalCarbonFootprint += item.carbonFootprint || 0;
+        existing.materialCount += 1;
+      } else {
+        acc.push({
+          company: item.supplier,
+          totalWeight: item.weight || 0,
+          totalCarbonFootprint: item.carbonFootprint || 0,
+          materialCount: 1,
+        });
       }
-    } else {
-      acc.push({
-        material: item.material,
-        totalWeight: item.weight || 0,
-        totalCarbonFootprint: item.carbonFootprint || 0,
-        suppliers: [item.supplier],
-        quantity: item.quantity,
-        unit: item.unit,
-      });
-    }
-    return acc;
-  }, [] as MaterialSummary[]);
+      return acc;
+    }, [] as CompanySummary[])
+    .filter(summary => summary.totalCarbonFootprint > 0);
+
+  // Calculate material summaries (only materials with carbon footprint)
+  const materialSummaries = materialData
+    .filter(item => (item.carbonFootprint || 0) > 0)
+    .reduce((acc, item) => {
+      const existing = acc.find(s => s.material === item.material);
+      
+      if (existing) {
+        existing.totalWeight += item.weight || 0;
+        existing.totalCarbonFootprint += item.carbonFootprint || 0;
+        existing.quantity += item.quantity;
+        if (!existing.suppliers.includes(item.supplier)) {
+          existing.suppliers.push(item.supplier);
+        }
+      } else {
+        acc.push({
+          material: item.material,
+          totalWeight: item.weight || 0,
+          totalCarbonFootprint: item.carbonFootprint || 0,
+          suppliers: [item.supplier],
+          quantity: item.quantity,
+          unit: item.unit,
+        });
+      }
+      return acc;
+    }, [] as MaterialSummary[])
+    .filter(summary => summary.totalCarbonFootprint > 0);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -479,7 +485,7 @@ const SupplierPortal = () => {
               </Card>
             ) : (
               <div className="space-y-3">
-                {materialData.map((item, index) => (
+                {materialData.filter(item => (item.carbonFootprint || 0) > 0).map((item, index) => (
                   <Card key={index} className="p-4 hover:bg-accent/5 transition-colors">
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
                       <div className="md:col-span-2">
