@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Materials from "./pages/Materials";
 import Projects from "./pages/Projects";
 import SupplierPortal from "./pages/SupplierPortal";
+import TransportEmissions from "./pages/TransportEmissions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/materials" element={<Materials />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/supplier-portal" element={<SupplierPortal />} />
+          <Route path="/transport-emissions" element={<TransportEmissions />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

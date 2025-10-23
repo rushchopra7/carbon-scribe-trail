@@ -17,8 +17,8 @@ const Dashboard = () => {
                 <Leaf className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">CarbonTrack</h1>
-                <p className="text-sm text-muted-foreground">Construction Carbon Intelligence</p>
+                <h1 className="text-2xl font-bold text-foreground">Carbon Tracker</h1>
+                <p className="text-sm text-muted-foreground">Binary Brains</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -41,7 +41,7 @@ const Dashboard = () => {
 
       <div className="container mx-auto px-6 py-8">
         <div className="mb-6">
-          <h2 className="text-3xl font-bold text-foreground mb-2">Riverside Tower Project</h2>
+          <h2 className="text-3xl font-bold text-foreground mb-2">Vestigas Trial Project</h2>
           <p className="text-muted-foreground">Real-time carbon footprint tracking</p>
         </div>
 
@@ -62,14 +62,16 @@ const Dashboard = () => {
             icon={<Package className="h-6 w-6" />}
             variant="default"
           />
-          <CarbonMetricCard
-            title="Transport Emissions"
-            value="3,421"
-            unit="kg CO₂e"
-            trend={-5}
-            icon={<Truck className="h-6 w-6" />}
-            variant="success"
-          />
+          <Link to="/transport-emissions" className="block">
+            <CarbonMetricCard
+              title="Transport Emissions"
+              value="3,421"
+              unit="kg CO₂e"
+              trend={-5}
+              icon={<Truck className="h-6 w-6" />}
+              variant="success"
+            />
+          </Link>
           <CarbonMetricCard
             title="High-Carbon Alerts"
             value="7"
