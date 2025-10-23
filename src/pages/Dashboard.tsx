@@ -2,6 +2,10 @@ import { CarbonMetricCard } from "@/components/CarbonMetricCard";
 import { GamificationBadge } from "@/components/GamificationBadge";
 import { DeliveryAlert } from "@/components/DeliveryAlert";
 import { AuditTrail } from "@/components/AuditTrail";
+import { ComplianceMonitor } from "@/components/ComplianceMonitor";
+import { RegulationRadarChart } from "@/components/RegulationRadarChart";
+import { CarbonPredictionEngine } from "@/components/CarbonPredictionEngine";
+import { RegulatoryRiskAlerts } from "@/components/RegulatoryRiskAlerts";
 import { Button } from "@/components/ui/button";
 import { Leaf, Package, Truck, Building2, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -45,7 +49,7 @@ const Dashboard = () => {
           <p className="text-muted-foreground">Real-time carbon footprint tracking</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <CarbonMetricCard
             title="Total Carbon Footprint"
             value="24,567"
@@ -72,14 +76,18 @@ const Dashboard = () => {
               variant="success"
             />
           </Link>
-          <CarbonMetricCard
-            title="High-Carbon Alerts"
-            value="7"
-            unit="active"
-            trend={15}
-            icon={<Package className="h-6 w-6" />}
-            variant="warning"
-          />
+        </div>
+
+        {/* AI-Powered Compliance & Prediction Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <ComplianceMonitor />
+          <RegulationRadarChart />
+          <RegulatoryRiskAlerts />
+        </div>
+
+        {/* Carbon Prediction Engine - Full Width */}
+        <div className="mb-8">
+          <CarbonPredictionEngine />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
