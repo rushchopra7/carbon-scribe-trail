@@ -2,131 +2,122 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, FileCheck, CheckCircle2, FileText, Trash2, Building2 } from "lucide-react";
+import { ArrowLeft, Upload, FileCheck, CheckCircle2, FileText, Trash2, Building2, Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-
-type DocumentType = "lieferschein" | "epd" | "invoice" | "certificate" | "other";
-
-interface UploadedDocument {
-  id: string;
-  name: string;
-  type: DocumentType;
-  uploadedAt: Date;
-  supplierName?: string;
-  materialName?: string;
-  extractedData?: {
-    carbonFootprint?: number; // kg CO₂e
-    weight?: number; // kg
-    quantity?: number; // units/pieces
-    origin?: string;
-  };
-}
+import { parseExcelFile, MaterialData } from "@/utils/excelParser";
 
 interface CompanySummary {
   company: string;
   totalWeight: number;
   totalCarbonFootprint: number;
-  documentCount: number;
-  totalQuantity: number;
+  materialCount: number;
+}
+
+interface MaterialSummary {
+  material: string;
+  totalWeight: number;
+  totalCarbonFootprint: number;
+  suppliers: string[];
+  quantity: number;
+  unit: string;
 }
 
 const SupplierPortal = () => {
   const { toast } = useToast();
-  const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
-  const [documentType, setDocumentType] = useState<DocumentType>("lieferschein");
-  const [supplierName, setSupplierName] = useState("");
-  const [materialName, setMaterialName] = useState("");
+  const [materialData, setMaterialData] = useState<MaterialData[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Calculate company summaries whenever documents change
-  const companySummaries = uploadedDocuments.reduce((acc, doc) => {
-    const company = doc.supplierName || "Unknown Company";
-    const existing = acc.find(s => s.company === company);
-    
-    const weight = doc.extractedData?.weight || 0;
-    const carbon = doc.extractedData?.carbonFootprint || 0;
-    const quantity = doc.extractedData?.quantity || 0;
+  // Calculate company summaries
+  const companySummaries = materialData.reduce((acc, item) => {
+    const existing = acc.find(s => s.company === item.supplier);
     
     if (existing) {
-      existing.totalWeight += weight;
-      existing.totalCarbonFootprint += carbon;
-      existing.totalQuantity += quantity;
-      existing.documentCount += 1;
+      existing.totalWeight += item.weight || 0;
+      existing.totalCarbonFootprint += item.carbonFootprint || 0;
+      existing.materialCount += 1;
     } else {
       acc.push({
-        company,
-        totalWeight: weight,
-        totalCarbonFootprint: carbon,
-        totalQuantity: quantity,
-        documentCount: 1,
+        company: item.supplier,
+        totalWeight: item.weight || 0,
+        totalCarbonFootprint: item.carbonFootprint || 0,
+        materialCount: 1,
       });
     }
     return acc;
   }, [] as CompanySummary[]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      const newDocuments: UploadedDocument[] = [];
-      
-      // Process all selected files
-      Array.from(files).forEach((file) => {
-        // Simulate document processing with extracted data in kg units
-        const mockExtractedData = {
-          carbonFootprint: documentType === "lieferschein" ? Math.random() * 500 + 100 : undefined,
-          weight: Math.random() * 1000 + 100, // Always in kg
-          origin: documentType === "lieferschein" ? "Germany" : undefined,
-          quantity: documentType === "lieferschein" ? Math.floor(Math.random() * 50 + 5) : undefined,
-        };
-
-        const newDocument: UploadedDocument = {
-          id: `${Date.now()}-${Math.random()}`,
-          name: file.name,
-          type: documentType,
-          uploadedAt: new Date(),
-          supplierName: supplierName || undefined,
-          materialName: materialName || undefined,
-          extractedData: mockExtractedData,
-        };
-        
-        newDocuments.push(newDocument);
+  // Calculate material summaries
+  const materialSummaries = materialData.reduce((acc, item) => {
+    const existing = acc.find(s => s.material === item.material);
+    
+    if (existing) {
+      existing.totalWeight += item.weight || 0;
+      existing.totalCarbonFootprint += item.carbonFootprint || 0;
+      existing.quantity += item.quantity;
+      if (!existing.suppliers.includes(item.supplier)) {
+        existing.suppliers.push(item.supplier);
+      }
+    } else {
+      acc.push({
+        material: item.material,
+        totalWeight: item.weight || 0,
+        totalCarbonFootprint: item.carbonFootprint || 0,
+        suppliers: [item.supplier],
+        quantity: item.quantity,
+        unit: item.unit,
       });
+    }
+    return acc;
+  }, [] as MaterialSummary[]);
 
-      setUploadedDocuments([...uploadedDocuments, ...newDocuments]);
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsProcessing(true);
+
+    try {
+      const allMaterials: MaterialData[] = [];
+      
+      for (const file of Array.from(files)) {
+        const parsedData = await parseExcelFile(file);
+        allMaterials.push(...parsedData);
+      }
+
+      setMaterialData([...materialData, ...allMaterials]);
       
       toast({
-        title: "Documents Uploaded Successfully",
-        description: `${newDocuments.length} document${newDocuments.length > 1 ? 's' : ''} processed and verified.`,
+        title: "Files Processed Successfully",
+        description: `Processed ${files.length} file(s) with ${allMaterials.length} materials. Carbon footprints calculated.`,
       });
 
-      // Reset form
       e.target.value = "";
+    } catch (error) {
+      toast({
+        title: "Error Processing Files",
+        description: "Failed to parse Excel files. Please ensure they have the correct format.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleDeleteDocument = (id: string) => {
-    setUploadedDocuments(uploadedDocuments.filter(doc => doc.id !== id));
+  const handleClearData = () => {
+    setMaterialData([]);
     toast({
-      title: "Document Removed",
-      description: "Document has been removed from the system.",
+      title: "Data Cleared",
+      description: "All uploaded data has been removed.",
     });
   };
 
-  const getDocumentTypeLabel = (type: DocumentType) => {
-    const labels: Record<DocumentType, string> = {
-      lieferschein: "Lieferschein (Delivery Note)",
-      epd: "EPD (Environmental Product Declaration)",
-      invoice: "Invoice",
-      certificate: "Certificate",
-      other: "Other Document",
-    };
-    return labels[type];
-  };
+  const totalCarbonFootprint = materialData.reduce((sum, item) => sum + (item.carbonFootprint || 0), 0);
+  const totalWeight = materialData.reduce((sum, item) => sum + (item.weight || 0), 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/30">
@@ -141,102 +132,106 @@ const SupplierPortal = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-8 max-w-6xl">
+      <div className="container mx-auto px-6 py-8 max-w-7xl">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-foreground mb-2">Document Upload Portal</h2>
-          <p className="text-muted-foreground">Upload delivery notes, EPDs, invoices, and other documents</p>
+          <h2 className="text-3xl font-bold text-foreground mb-2">Carbon Footprint Analysis Portal</h2>
+          <p className="text-muted-foreground">Upload Excel files to calculate company-wise and material-wise carbon footprints</p>
         </div>
 
+        {/* Summary Cards */}
+        {materialData.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <Card className="p-6 bg-gradient-to-br from-primary/10 to-primary/5">
+              <p className="text-sm text-muted-foreground mb-2">Total Materials</p>
+              <p className="text-3xl font-bold text-foreground">{materialData.length}</p>
+            </Card>
+            <Card className="p-6 bg-gradient-to-br from-primary/10 to-primary/5">
+              <p className="text-sm text-muted-foreground mb-2">Total Weight</p>
+              <p className="text-3xl font-bold text-foreground">{totalWeight.toFixed(2)}</p>
+              <p className="text-sm text-muted-foreground">kg</p>
+            </Card>
+            <Card className="p-6 bg-gradient-to-br from-primary/20 to-primary/10 border-primary/30">
+              <p className="text-sm text-muted-foreground mb-2">Total Carbon Footprint</p>
+              <p className="text-3xl font-bold text-primary">{totalCarbonFootprint.toFixed(2)}</p>
+              <p className="text-sm text-muted-foreground">kg CO₂e</p>
+            </Card>
+          </div>
+        )}
+
         <Tabs defaultValue="upload" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="upload">Upload Documents</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="upload">Upload Files</TabsTrigger>
             <TabsTrigger value="companies">
               By Company ({companySummaries.length})
             </TabsTrigger>
-            <TabsTrigger value="results">
-              Individual Results ({uploadedDocuments.length})
+            <TabsTrigger value="materials">
+              By Material ({materialSummaries.length})
+            </TabsTrigger>
+            <TabsTrigger value="details">
+              All Details ({materialData.length})
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="upload" className="space-y-6">
             <Card className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Upload Document</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">Upload Excel Files</h3>
               
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="document-type">Document Type</Label>
-                  <Select value={documentType} onValueChange={(value) => setDocumentType(value as DocumentType)}>
-                    <SelectTrigger id="document-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="lieferschein">Lieferschein (Delivery Note)</SelectItem>
-                      <SelectItem value="epd">EPD (Environmental Product Declaration)</SelectItem>
-                      <SelectItem value="invoice">Invoice</SelectItem>
-                      <SelectItem value="certificate">Certificate</SelectItem>
-                      <SelectItem value="other">Other Document</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="supplier-name">Supplier Name</Label>
-                  <Input 
-                    id="supplier-name" 
-                    placeholder="Your company name"
-                    value={supplierName}
-                    onChange={(e) => setSupplierName(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="material-name">Material/Product Name</Label>
-                  <Input 
-                    id="material-name" 
-                    placeholder="Product or material name"
-                    value={materialName}
-                    onChange={(e) => setMaterialName(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="document-file">Document Files (PDF, Excel, or Image)</Label>
+                  <Label htmlFor="excel-files">Excel Files (.xlsx, .xls)</Label>
                   <div className="mt-2 flex items-center gap-4">
                     <Input
-                      id="document-file"
+                      id="excel-files"
                       ref={fileInputRef}
                       type="file"
-                      accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png"
+                      accept=".xlsx,.xls"
                       onChange={handleFileUpload}
                       multiple
                       className="cursor-pointer"
+                      disabled={isProcessing}
                     />
-                    <Button className="gap-2" type="button" onClick={() => fileInputRef.current?.click()}>
+                    <Button 
+                      className="gap-2" 
+                      type="button" 
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isProcessing}
+                    >
                       <Upload className="h-4 w-4" />
-                      Choose Files
+                      {isProcessing ? "Processing..." : "Choose Files"}
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Select multiple files to upload (e.g., one for quantity, one for weight). All metrics in kg.
+                    Upload multiple Excel files (e.g., weight and quantity data). Files should contain: Lieferant, Artikel-Nummer, Artikel, Menge, Einheit columns.
                   </p>
                 </div>
+
+                {materialData.length > 0 && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleClearData}
+                    className="gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Clear All Data
+                  </Button>
+                )}
               </div>
             </Card>
 
             <Card className="p-6 bg-primary/5 border-primary/20">
-              <h3 className="text-lg font-semibold text-foreground mb-2">Document Processing</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">How it works</h3>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                  <span>Automatic data extraction from delivery notes and invoices</span>
+                  <span>Upload your Excel files containing material quantities and weights</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                  <span>Carbon footprint calculation based on document data</span>
+                  <span>Carbon footprints are automatically calculated based on material types</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                  <span>Individual verification and audit trail for each document</span>
+                  <span>View aggregated data by company or by material type</span>
                 </li>
               </ul>
             </Card>
@@ -248,37 +243,37 @@ const SupplierPortal = () => {
                 <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No company data available</p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload documents with supplier information to see company-wise summaries
+                  Upload Excel files to see company-wise summaries
                 </p>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {companySummaries.map((summary, index) => (
-                  <Card key={index} className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {companySummaries.sort((a, b) => b.totalCarbonFootprint - a.totalCarbonFootprint).map((summary, index) => (
+                  <Card key={index} className="p-6 bg-gradient-to-br from-card to-card/50 hover:shadow-lg transition-shadow">
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-bold text-lg text-foreground">{summary.company}</h4>
-                        <Badge variant="secondary">{summary.documentCount} docs</Badge>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-base text-foreground truncate" title={summary.company}>
+                            {summary.company}
+                          </h4>
+                          <Badge variant="secondary" className="mt-2">
+                            {summary.materialCount} materials
+                          </Badge>
+                        </div>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-3 bg-card/50 rounded-lg">
+                      <div className="space-y-3">
+                        <div className="p-3 bg-secondary/30 rounded-lg">
                           <p className="text-xs text-muted-foreground mb-1">Total Weight</p>
                           <p className="text-xl font-bold text-foreground">{summary.totalWeight.toFixed(2)}</p>
                           <p className="text-xs text-muted-foreground">kg</p>
                         </div>
                         
-                        <div className="p-3 bg-card/50 rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Total Quantity</p>
-                          <p className="text-xl font-bold text-foreground">{summary.totalQuantity}</p>
-                          <p className="text-xs text-muted-foreground">units</p>
+                        <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                          <p className="text-xs text-muted-foreground mb-1">Carbon Footprint</p>
+                          <p className="text-2xl font-bold text-primary">{summary.totalCarbonFootprint.toFixed(2)}</p>
+                          <p className="text-sm text-muted-foreground">kg CO₂e</p>
                         </div>
-                      </div>
-                      
-                      <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
-                        <p className="text-xs text-muted-foreground mb-1">Total Carbon Footprint</p>
-                        <p className="text-2xl font-bold text-primary">{summary.totalCarbonFootprint.toFixed(2)}</p>
-                        <p className="text-sm text-muted-foreground">kg CO₂e</p>
                       </div>
                     </div>
                   </Card>
@@ -287,96 +282,84 @@ const SupplierPortal = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="results" className="space-y-6">
-            {uploadedDocuments.length === 0 ? (
+          <TabsContent value="materials" className="space-y-6">
+            {materialSummaries.length === 0 ? (
               <Card className="p-12 text-center">
-                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No documents uploaded yet</p>
+                <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No material data available</p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Upload documents to see individual processing results
+                  Upload Excel files to see material-wise summaries
                 </p>
               </Card>
             ) : (
-              <div className="grid gap-6">
-                {uploadedDocuments.map((doc) => (
-                  <Card key={doc.id} className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-start gap-3">
-                        <FileCheck className="h-5 w-5 text-success mt-1" />
-                        <div>
-                          <h4 className="font-semibold text-foreground">{doc.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {getDocumentTypeLabel(doc.type)}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Uploaded: {doc.uploadedAt.toLocaleString()}
-                          </p>
+              <div className="grid gap-4">
+                {materialSummaries.sort((a, b) => b.totalCarbonFootprint - a.totalCarbonFootprint).map((summary, index) => (
+                  <Card key={index} className="p-6 hover:shadow-md transition-shadow">
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="font-semibold text-foreground mb-2">{summary.material}</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {summary.suppliers.map((supplier, idx) => (
+                            <Badge key={idx} variant="outline">{supplier}</Badge>
+                          ))}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteDocument(doc.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="p-3 bg-secondary/30 rounded-lg">
+                          <p className="text-xs text-muted-foreground mb-1">Quantity</p>
+                          <p className="text-lg font-bold text-foreground">{summary.quantity.toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground">{summary.unit}</p>
+                        </div>
+                        <div className="p-3 bg-secondary/30 rounded-lg">
+                          <p className="text-xs text-muted-foreground mb-1">Weight</p>
+                          <p className="text-lg font-bold text-foreground">{summary.totalWeight.toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground">kg</p>
+                        </div>
+                        <div className="p-3 bg-primary/10 rounded-lg border border-primary/20 md:col-span-2">
+                          <p className="text-xs text-muted-foreground mb-1">Carbon Footprint</p>
+                          <p className="text-2xl font-bold text-primary">{summary.totalCarbonFootprint.toFixed(2)}</p>
+                          <p className="text-sm text-muted-foreground">kg CO₂e</p>
+                        </div>
+                      </div>
                     </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Supplier</p>
-                        <p className="text-sm font-medium text-foreground">
-                          {doc.supplierName || "Not specified"}
-                        </p>
+          <TabsContent value="details" className="space-y-6">
+            {materialData.length === 0 ? (
+              <Card className="p-12 text-center">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No data uploaded yet</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Upload Excel files to see detailed information
+                </p>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {materialData.map((item, index) => (
+                  <Card key={index} className="p-4 hover:bg-accent/5 transition-colors">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+                      <div className="md:col-span-2">
+                        <p className="font-medium text-foreground text-sm">{item.material}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{item.supplier}</p>
+                        <Badge variant="outline" className="mt-2 text-xs">{item.articleNumber}</Badge>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Material/Product</p>
-                        <p className="text-sm font-medium text-foreground">
-                          {doc.materialName || "Not specified"}
-                        </p>
+                        <p className="text-xs text-muted-foreground">Quantity</p>
+                        <p className="font-medium text-foreground">{item.quantity} {item.unit}</p>
                       </div>
-                      {doc.extractedData && (
-                        <>
-                          {doc.extractedData.quantity && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Quantity</p>
-                              <p className="text-sm font-medium text-foreground">
-                                {doc.extractedData.quantity} units
-                              </p>
-                            </div>
-                          )}
-                          {doc.extractedData.weight && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Weight</p>
-                              <p className="text-sm font-medium text-foreground">
-                                {doc.extractedData.weight.toFixed(2)} kg
-                              </p>
-                            </div>
-                          )}
-                          {doc.extractedData.carbonFootprint && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Carbon Footprint</p>
-                              <p className="text-sm font-medium text-foreground">
-                                {doc.extractedData.carbonFootprint.toFixed(2)} kg CO₂e
-                              </p>
-                            </div>
-                          )}
-                          {doc.extractedData.origin && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Origin</p>
-                              <p className="text-sm font-medium text-foreground">
-                                {doc.extractedData.origin}
-                              </p>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="mt-4 flex items-center gap-2 text-sm">
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                      <span className="text-success font-medium">Verified and processed</span>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Weight</p>
+                        <p className="font-medium text-foreground">{item.weight?.toFixed(2)} kg</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Carbon</p>
+                        <p className="font-bold text-primary">{item.carbonFootprint?.toFixed(2)} kg CO₂e</p>
+                      </div>
                     </div>
                   </Card>
                 ))}
