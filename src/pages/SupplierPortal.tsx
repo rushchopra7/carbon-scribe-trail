@@ -127,25 +127,54 @@ const SupplierPortal = () => {
   const totalCarbonFootprint = materialData.reduce((sum, item) => sum + (item.carbonFootprint || 0), 0);
   const totalWeight = materialData.reduce((sum, item) => sum + (item.weight || 0), 0);
 
-  // Prepare chart data
-  const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+  // Prepare chart data and colors
+  const CHART_COLORS = [
+    'hsl(147 70% 45%)',
+    'hsl(158 65% 50%)', 
+    'hsl(140 60% 40%)',
+    'hsl(152 55% 48%)',
+    'hsl(145 65% 42%)',
+    'hsl(155 60% 46%)',
+    'hsl(150 58% 44%)',
+    'hsl(143 62% 47%)',
+  ];
   
   const companyChartData = companySummaries
     .sort((a, b) => b.totalCarbonFootprint - a.totalCarbonFootprint)
     .slice(0, 10)
     .map(item => ({
       name: item.company.length > 20 ? item.company.substring(0, 20) + '...' : item.company,
-      carbonFootprint: Math.round(item.totalCarbonFootprint),
-      weight: Math.round(item.totalWeight),
+      carbonFootprint: item.totalCarbonFootprint,
     }));
 
   const materialChartData = materialSummaries
     .sort((a, b) => b.totalCarbonFootprint - a.totalCarbonFootprint)
     .slice(0, 8)
-    .map(item => ({
+    .map((item, index) => ({
       name: item.material.length > 15 ? item.material.substring(0, 15) + '...' : item.material,
-      value: Math.round(item.totalCarbonFootprint),
+      value: item.totalCarbonFootprint,
+      percentage: ((item.totalCarbonFootprint / totalCarbonFootprint) * 100).toFixed(1),
     }));
+
+  // Custom tooltip component for better styling
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-card border border-border rounded-lg shadow-lg p-4">
+          <p className="font-semibold text-foreground mb-2">{label}</p>
+          <p className="text-primary text-lg font-bold">
+            {formatNumberGerman(payload[0].value)} kg CO₂e
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Custom pie chart label
+  const renderCustomLabel = (entry: any) => {
+    return `${entry.percentage}%`;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/30">
@@ -276,36 +305,56 @@ const SupplierPortal = () => {
               </Card>
             ) : (
               <>
-                <Card className="p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <BarChart3 className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Top 10 Companies by Carbon Footprint</h3>
+                <Card className="p-8 bg-gradient-to-br from-card via-card to-primary/5 border-primary/20">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <BarChart3 className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-foreground">Top Companies</h3>
+                      <p className="text-sm text-muted-foreground">Carbon footprint impact ranking</p>
+                    </div>
                   </div>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={companyChartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <ResponsiveContainer width="100%" height={500}>
+                    <BarChart 
+                      data={companyChartData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 120 }}
+                    >
+                      <defs>
+                        <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="hsl(147 70% 45%)" stopOpacity={0.9}/>
+                          <stop offset="100%" stopColor="hsl(158 65% 50%)" stopOpacity={0.7}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid 
+                        strokeDasharray="3 3" 
+                        stroke="hsl(var(--border))" 
+                        strokeOpacity={0.3}
+                        vertical={false}
+                      />
                       <XAxis 
                         dataKey="name" 
                         angle={-45} 
                         textAnchor="end" 
                         height={120}
                         stroke="hsl(var(--muted-foreground))"
-                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        tick={{ fill: 'hsl(var(--foreground))', fontSize: 12, fontWeight: 500 }}
+                        tickLine={false}
                       />
                       <YAxis 
                         stroke="hsl(var(--muted-foreground))"
-                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => formatNumberGerman(value, 0)}
                       />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
-                        }}
-                        formatter={(value: number) => formatNumberGerman(value)}
+                      <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--accent) / 0.1)' }} />
+                      <Bar 
+                        dataKey="carbonFootprint" 
+                        fill="url(#barGradient)" 
+                        radius={[12, 12, 0, 0]}
+                        maxBarSize={60}
                       />
-                      <Legend />
-                      <Bar dataKey="carbonFootprint" name="Carbon Footprint (kg CO₂e)" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </Card>
@@ -387,7 +436,7 @@ const SupplierPortal = () => {
                           dataKey="value"
                         >
                           {materialChartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                           ))}
                         </Pie>
                         <Tooltip 
@@ -402,26 +451,57 @@ const SupplierPortal = () => {
                     </ResponsiveContainer>
                   </Card>
 
-                  <Card className="p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <TrendingUp className="h-5 w-5 text-primary" />
-                      <h3 className="text-lg font-semibold">Top Materials Impact</h3>
+                  <Card className="p-8 bg-gradient-to-br from-card via-card to-success/5 border-success/20">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="h-10 w-10 rounded-xl bg-success/10 flex items-center justify-center">
+                        <TrendingUp className="h-6 w-6 text-success" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-foreground">Top 5 Materials</h3>
+                        <p className="text-sm text-muted-foreground">Highest carbon contributors</p>
+                      </div>
                     </div>
-                    <div className="space-y-4">
-                      {materialSummaries.slice(0, 5).map((summary, index) => (
-                        <div key={index} className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="font-medium text-foreground truncate max-w-[60%]">{summary.material}</span>
-                            <span className="text-primary font-bold">{formatNumberGerman(summary.totalCarbonFootprint)} kg CO₂e</span>
+                    <div className="space-y-6">
+                      {materialSummaries.slice(0, 5).map((summary, index) => {
+                        const percentage = (summary.totalCarbonFootprint / materialSummaries[0].totalCarbonFootprint) * 100;
+                        return (
+                          <div key={index} className="space-y-3">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <div 
+                                  className="h-8 w-8 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                                  style={{ backgroundColor: CHART_COLORS[index] }}
+                                >
+                                  {index + 1}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-foreground truncate">{summary.material}</p>
+                                  <p className="text-xs text-muted-foreground">{summary.suppliers.length} supplier(s)</p>
+                                </div>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-lg font-bold text-success">{formatNumberGerman(summary.totalCarbonFootprint, 0)}</p>
+                                <p className="text-xs text-muted-foreground">kg CO₂e</p>
+                              </div>
+                            </div>
+                            <div className="relative">
+                              <div className="w-full bg-secondary/50 rounded-full h-3 overflow-hidden">
+                                <div 
+                                  className="h-3 rounded-full transition-all duration-700 ease-out"
+                                  style={{ 
+                                    width: `${percentage}%`,
+                                    background: `linear-gradient(90deg, ${CHART_COLORS[index]} 0%, ${CHART_COLORS[index]}99 100%)`
+                                  }}
+                                >
+                                </div>
+                              </div>
+                              <span className="absolute right-2 top-0 text-xs font-semibold text-foreground">
+                                {percentage.toFixed(0)}%
+                              </span>
+                            </div>
                           </div>
-                          <div className="w-full bg-secondary/30 rounded-full h-2.5">
-                            <div 
-                              className="bg-primary h-2.5 rounded-full transition-all duration-500"
-                              style={{ width: `${(summary.totalCarbonFootprint / materialSummaries[0].totalCarbonFootprint) * 100}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </Card>
                 </div>
@@ -432,7 +512,7 @@ const SupplierPortal = () => {
                       <div className="space-y-4">
                         <div>
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }}>
+                            <div className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}>
                               <Package className="h-4 w-4 text-white" />
                             </div>
                             <h4 className="font-semibold text-foreground">{summary.material}</h4>
