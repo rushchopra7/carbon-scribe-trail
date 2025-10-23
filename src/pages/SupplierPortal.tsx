@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Upload, FileCheck, CheckCircle2, FileText, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,6 +31,7 @@ const SupplierPortal = () => {
   const [documentType, setDocumentType] = useState<DocumentType>("lieferschein");
   const [supplierName, setSupplierName] = useState("");
   const [materialName, setMaterialName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -158,14 +159,15 @@ const SupplierPortal = () => {
                   <div className="mt-2 flex items-center gap-4">
                     <Input
                       id="document-file"
+                      ref={fileInputRef}
                       type="file"
                       accept=".pdf,.xlsx,.xls,.jpg,.jpeg,.png"
                       onChange={handleFileUpload}
                       className="cursor-pointer"
                     />
-                    <Button className="gap-2">
+                    <Button className="gap-2" type="button" onClick={() => fileInputRef.current?.click()}>
                       <Upload className="h-4 w-4" />
-                      Upload
+                      Choose File
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">

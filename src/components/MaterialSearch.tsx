@@ -5,14 +5,24 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 
 export const MaterialSearch = () => {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [manualMaterial, setManualMaterial] = useState({
     name: "",
     emission: "",
     unit: "kg CO₂e/kg"
   });
+  const [selectedMaterials, setSelectedMaterials] = useState<Array<{ name: string; emission: number; unit: string }>>([]);
+
+  const okobaudatMaterials: Array<{ name: string; emission: number; unit: string }> = [
+    { name: "Concrete C30/37", emission: 280, unit: "kg CO₂e/ton" },
+    { name: "Steel Rebar", emission: 1900, unit: "kg CO₂e/ton" },
+    { name: "Timber Beam", emission: 60, unit: "kg CO₂e/ton" },
+    { name: "Ceramic Brick", emission: 220, unit: "kg CO₂e/ton" },
+  ];
 
   return (
     <Card className="p-6">
@@ -36,25 +46,29 @@ export const MaterialSearch = () => {
           </div>
           
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {["Concrete C30/37", "Steel Rebar", "Timber Beam", "Ceramic Brick"].map((material) => (
-              <div
-                key={material}
-                className="p-3 border rounded-lg hover:bg-secondary cursor-pointer transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-foreground">{material}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {Math.floor(Math.random() * 300 + 50)} kg CO₂e/ton
-                    </p>
+            {okobaudatMaterials
+              .filter((m) => m.name.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map((m) => (
+                <div key={m.name} className="p-3 border rounded-lg hover:bg-secondary transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-foreground">{m.name}</p>
+                      <p className="text-sm text-muted-foreground">{m.emission} {m.unit}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedMaterials((prev) => [...prev, { name: m.name, emission: m.emission, unit: m.unit }]);
+                        toast({ title: "Material added", description: `${m.name} added to project.` });
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add
+                    </Button>
                   </div>
-                  <Button size="sm" variant="outline">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add
-                  </Button>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </TabsContent>
         
@@ -88,13 +102,45 @@ export const MaterialSearch = () => {
               </div>
             </div>
             
-            <Button className="w-full">
+            <Button
+              className="w-full"
+              onClick={() => {
+                const emissionVal = parseFloat(manualMaterial.emission);
+                if (!manualMaterial.name || isNaN(emissionVal)) {
+                  toast({ title: "Invalid input", description: "Enter a name and a valid emission factor." });
+                  return;
+                }
+                setSelectedMaterials((prev) => [
+                  ...prev,
+                  { name: manualMaterial.name, emission: emissionVal, unit: manualMaterial.unit },
+                ]);
+                toast({ title: "Material added", description: `${manualMaterial.name} added to project.` });
+                setManualMaterial({ name: "", emission: "", unit: manualMaterial.unit });
+              }}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Custom Material
             </Button>
           </div>
         </TabsContent>
       </Tabs>
+      {selectedMaterials.length > 0 && (
+        <div className="mt-6">
+          <h4 className="font-semibold text-foreground mb-2">Selected Materials</h4>
+          <div className="space-y-2">
+            {selectedMaterials.map((m, idx) => (
+              <div key={idx} className="flex items-center justify-between p-3 bg-muted/30 rounded-md border">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{m.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {m.emission} {m.unit}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </Card>
   );
 };
