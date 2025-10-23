@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { parseExcelFile, MaterialData } from "@/utils/excelParser";
+import { formatNumberGerman } from "@/lib/utils";
 
 interface CompanySummary {
   company: string;
@@ -143,16 +144,16 @@ const SupplierPortal = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <Card className="p-6 bg-gradient-to-br from-primary/10 to-primary/5">
               <p className="text-sm text-muted-foreground mb-2">Total Materials</p>
-              <p className="text-3xl font-bold text-foreground">{materialData.length}</p>
+              <p className="text-3xl font-bold text-foreground">{formatNumberGerman(materialData.length, 0)}</p>
             </Card>
             <Card className="p-6 bg-gradient-to-br from-primary/10 to-primary/5">
               <p className="text-sm text-muted-foreground mb-2">Total Weight</p>
-              <p className="text-3xl font-bold text-foreground">{totalWeight.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-foreground">{formatNumberGerman(totalWeight)}</p>
               <p className="text-sm text-muted-foreground">kg</p>
             </Card>
             <Card className="p-6 bg-gradient-to-br from-primary/20 to-primary/10 border-primary/30">
               <p className="text-sm text-muted-foreground mb-2">Total Carbon Footprint</p>
-              <p className="text-3xl font-bold text-primary">{totalCarbonFootprint.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-primary">{formatNumberGerman(totalCarbonFootprint)}</p>
               <p className="text-sm text-muted-foreground">kg CO₂e</p>
             </Card>
           </div>
@@ -257,7 +258,7 @@ const SupplierPortal = () => {
                             {summary.company}
                           </h4>
                           <Badge variant="secondary" className="mt-2">
-                            {summary.materialCount} materials
+                            {formatNumberGerman(summary.materialCount, 0)} materials
                           </Badge>
                         </div>
                       </div>
@@ -265,13 +266,13 @@ const SupplierPortal = () => {
                       <div className="space-y-3">
                         <div className="p-3 bg-secondary/30 rounded-lg">
                           <p className="text-xs text-muted-foreground mb-1">Total Weight</p>
-                          <p className="text-xl font-bold text-foreground">{summary.totalWeight.toFixed(2)}</p>
+                          <p className="text-xl font-bold text-foreground">{formatNumberGerman(summary.totalWeight)}</p>
                           <p className="text-xs text-muted-foreground">kg</p>
                         </div>
                         
                         <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
                           <p className="text-xs text-muted-foreground mb-1">Carbon Footprint</p>
-                          <p className="text-2xl font-bold text-primary">{summary.totalCarbonFootprint.toFixed(2)}</p>
+                          <p className="text-2xl font-bold text-primary">{formatNumberGerman(summary.totalCarbonFootprint)}</p>
                           <p className="text-sm text-muted-foreground">kg CO₂e</p>
                         </div>
                       </div>
@@ -308,17 +309,17 @@ const SupplierPortal = () => {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="p-3 bg-secondary/30 rounded-lg">
                           <p className="text-xs text-muted-foreground mb-1">Quantity</p>
-                          <p className="text-lg font-bold text-foreground">{summary.quantity.toFixed(2)}</p>
+                          <p className="text-lg font-bold text-foreground">{formatNumberGerman(summary.quantity)}</p>
                           <p className="text-xs text-muted-foreground">{summary.unit}</p>
                         </div>
                         <div className="p-3 bg-secondary/30 rounded-lg">
                           <p className="text-xs text-muted-foreground mb-1">Weight</p>
-                          <p className="text-lg font-bold text-foreground">{summary.totalWeight.toFixed(2)}</p>
+                          <p className="text-lg font-bold text-foreground">{formatNumberGerman(summary.totalWeight)}</p>
                           <p className="text-xs text-muted-foreground">kg</p>
                         </div>
                         <div className="p-3 bg-primary/10 rounded-lg border border-primary/20 md:col-span-2">
                           <p className="text-xs text-muted-foreground mb-1">Carbon Footprint</p>
-                          <p className="text-2xl font-bold text-primary">{summary.totalCarbonFootprint.toFixed(2)}</p>
+                          <p className="text-2xl font-bold text-primary">{formatNumberGerman(summary.totalCarbonFootprint)}</p>
                           <p className="text-sm text-muted-foreground">kg CO₂e</p>
                         </div>
                       </div>
@@ -350,15 +351,15 @@ const SupplierPortal = () => {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Quantity</p>
-                        <p className="font-medium text-foreground">{item.quantity} {item.unit}</p>
+                        <p className="font-medium text-foreground">{formatNumberGerman(item.quantity)} {item.unit}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Weight</p>
-                        <p className="font-medium text-foreground">{item.weight?.toFixed(2)} kg</p>
+                        <p className="font-medium text-foreground">{formatNumberGerman(item.weight || 0)} kg</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Carbon</p>
-                        <p className="font-bold text-primary">{item.carbonFootprint?.toFixed(2)} kg CO₂e</p>
+                        <p className="font-bold text-primary">{formatNumberGerman(item.carbonFootprint || 0)} kg CO₂e</p>
                       </div>
                     </div>
                   </Card>
